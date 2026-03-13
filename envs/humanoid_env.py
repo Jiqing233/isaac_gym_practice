@@ -13,8 +13,9 @@ class HumanoidEnv:
         self._create_sim()
         self._create_envs()
         self._prepare_tensors()
+        self._load_motion()
 
-        self.obs_dim = self.root_states.shape[1] + self.dof_states.view(self.num_envs, -1).shape[1]
+        self.obs_dim = self.root_states.shape[1] + self.dof_states.view(self.num_envs, -1).shape[1] + 1 # Added a phase
         self.act_dim = self.num_dofs
 
     def _create_sim(self):
@@ -77,11 +78,43 @@ class HumanoidEnv:
 
     def _prepare_tensors(self):
 
+        rb_tensor = self.gym.acquire_rigid_body_state_tensor(self.sim)
         root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
         dof_tensor = self.gym.acquire_dof_state_tensor(self.sim)
 
+        self.rb_states = gymtorch.wrap_tensor(rb_tensor)
         self.root_states = gymtorch.wrap_tensor(root_tensor)
         self.dof_states = gymtorch.wrap_tensor(dof_tensor)
+
+    def _load_motion(self):
+
+        project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        motion_path = os.path.join(project_dir, "data","martial_arts", "amp_humanoid_walk.npy")
+
+        motion_data = np.load(motion_path, allow_pickle=True)
+
+        # AMP stores everything inside OrderedDict
+        motion_dict = motion_data.item()
+
+        root_pos = motion_dict["root_translation"]["arr"]
+        rotation = motion_dict["rotation"]["arr"]
+        lin_vel = motion_dict["global_velocity"]["arr"]
+        ang_vel = motion_dict["global_angular_velocity"]["arr"]
+
+        # Convert to torch
+        self.root_pos_ref = torch.tensor(root_pos, dtype=torch.float32, device=self.device)
+        self.rot_ref = torch.tensor(rotation, dtype=torch.float32, device=self.device)
+        self.lin_vel_ref = torch.tensor(lin_vel, dtype=torch.float32, device=self.device)
+        self.ang_vel_ref = torch.tensor(ang_vel, dtype=torch.float32, device=self.device)
+
+        self.motion_length = self.root_pos_ref.shape[0]
+
+        # Random phase per env
+        self.motion_phase = torch.randint(
+            0, self.motion_length, (self.num_envs,), device=self.device
+        )
+
+        print("Motion frames:", self.motion_length)
 
     def step(self, actions):
 
@@ -89,6 +122,10 @@ class HumanoidEnv:
             self.sim,
             gymtorch.unwrap_tensor(actions)
         )
+
+        # Update motion phase
+        self.motion_phase += 1
+        self.motion_phase %= self.motion_length
 
         self.gym.simulate(self.sim)
         self.gym.fetch_results(self.sim, True)
@@ -106,16 +143,24 @@ class HumanoidEnv:
 
         dof_view = self.dof_states.view(self.num_envs, -1)
 
+        phase = self.motion_phase.float() / self.motion_length
+        phase = phase.unsqueeze(-1)
+
         obs = torch.cat([
             self.root_states,
-            dof_view
+            dof_view,
+            phase
         ], dim=-1)
 
         return obs
 
     def compute_reward(self):
-        height = self.root_states[:, 2]
-        return height
+        rb = self.rb_states.view(self.num_envs, 15, 13)
+        body_rot = rb[:, :, 3:7]   # quaternion
+        ref_rot = self.rot_ref[self.motion_phase]
+        rot_error = torch.mean((body_rot - ref_rot) ** 2, dim=(1, 2))
+        reward = torch.exp(-5.0 * rot_error)
+        return reward
 
     def compute_done(self):
         return self.root_states[:, 2] < 0.5

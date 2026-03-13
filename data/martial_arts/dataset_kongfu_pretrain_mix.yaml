@@ -1,0 +1,41 @@
+motions:
+  - file: "amp_humanoid_backflip.npy"
+    weight: 0.0372
+  - file: "amp_humanoid_cartwheel.npy"
+    weight: 0.1774
+  - file: "amp_humanoid_hop.npy"
+    weight: 0.1834
+  - file: "amp_humanoid_jog.npy"
+    weight: 0.0335
+  - file: "amp_humanoid_run.npy"
+    weight: 0.0323
+  - file: "amp_humanoid_walk.npy"
+    weight: 0.0507
+  - file: "amp_humanoid_wushukicks.npy"
+    weight: 0.1706
+  - file: "Caden_Backkicking_amp.npy"
+    weight: 0.0641
+  - file: "Garren_Blockpunch01_amp.npy"
+    weight: 0.2709
+  - file: "Garren_Blockpunch02_amp.npy"
+    weight: 0.3077
+  - file: "Garren_Combination01_amp.npy"
+    weight: 0.4349
+  - file: "Garren_Combination02_amp.npy"
+    weight: 0.4429
+  - file: "Garren_Kicking01_amp.npy"
+    weight: 0.2465
+  - file: "Garren_KickingCartwheel_amp.npy"
+    weight: 0.4037
+  - file: "Garren_Knifehand_amp.npy"
+    weight: 0.3964
+  - file: "Garren_Punch_amp.npy"
+    weight: 0.2391
+  - file: "Garren_Superman_amp.npy"
+    weight: 0.2422
+  - file: "Garren_Superman02_amp.npy"
+    weight: 0.2587
+  - file: "Natalie_Combinations_amp.npy"
+    weight: 1.8
+  - file: "Natalie_FirstFormOct_amp.npy"
+    weight: 1.1
