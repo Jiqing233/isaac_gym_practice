@@ -29,7 +29,7 @@ class ActorCritic(nn.Module):
         )
 
         # Log std (learnable)
-        self.log_std = nn.Parameter(torch.zeros(act_dim))
+        self.log_std = nn.Parameter(torch.zeros(act_dim) * -0.5)
 
     def forward(self, obs):
         raise NotImplementedError
@@ -42,6 +42,7 @@ class ActorCritic(nn.Module):
         dist = Normal(mean, std)
 
         action = dist.sample()
+        action = torch.tanh(dist.sample())
         log_prob = dist.log_prob(action).sum(-1)
 
         return action, log_prob
@@ -103,8 +104,7 @@ class RolloutBuffer:
 
 class PPO:
     def __init__(self,
-                 obs_dim,
-                 act_dim,
+                 model,
                  device="cuda",
                  lr=3e-4,
                  clip_coef=0.2,
@@ -115,7 +115,7 @@ class PPO:
 
         self.device = device
 
-        self.model = ActorCritic(obs_dim, act_dim).to(device)
+        self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
         self.clip_coef = clip_coef
